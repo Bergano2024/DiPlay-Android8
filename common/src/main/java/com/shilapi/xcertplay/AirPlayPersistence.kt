@@ -200,23 +200,26 @@ object AirPlayPersistence {
     }
 
     fun loadWirelessHotspotMode(context: Context): WirelessHotspotMode {
-        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val stored = prefs.getString(KEY_WIRELESS_HOTSPOT_MODE, null)
-        val mode = WirelessHotspotMode.entries.firstOrNull { it.name == stored }
-            ?: WirelessHotspotMode.MANUAL
-        val supported = if (mode == WirelessHotspotMode.LOCAL_ONLY_HOTSPOT ||
-            (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q && mode == WirelessHotspotMode.WIFI_P2P)
-        ) WirelessHotspotMode.MANUAL else mode
-        if (stored != supported.name) saveWirelessHotspotMode(context, supported)
-        return supported
-    }
+    val stored = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        .getString(KEY_WIRELESS_HOTSPOT_MODE, null)
 
-    fun saveWirelessHotspotMode(context: Context, mode: WirelessHotspotMode) {
-        val supported = if (mode == WirelessHotspotMode.LOCAL_ONLY_HOTSPOT) WirelessHotspotMode.MANUAL else mode
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putString(KEY_WIRELESS_HOTSPOT_MODE, supported.name)
-            .apply()
+    val mode = WirelessHotspotMode.entries.firstOrNull { it.name == stored }
+        ?: WirelessHotspotMode.WIFI_P2P
+
+    return if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+        mode == WirelessHotspotMode.WIFI_P2P
+    ) {
+        WirelessHotspotMode.LOCAL_ONLY_HOTSPOT
+    } else {
+        mode
     }
+}
+
+fun saveWirelessHotspotMode(context: Context, mode: WirelessHotspotMode) {
+    context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+        .putString(KEY_WIRELESS_HOTSPOT_MODE, mode.name)
+        .apply()
+}
 
     fun loadManualHotspotSsid(context: Context): String =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
