@@ -88,7 +88,7 @@ class StandaloneHudDemoActivity : Activity() {
         val info = packageManager.getPackageInfo(target.packageName, (if (android.os.Build.VERSION.SDK_INT >= 28) PackageManager.GET_SIGNING_CERTIFICATES else @Suppress("DEPRECATION") PackageManager.GET_SIGNATURES))
         check((if (android.os.Build.VERSION.SDK_INT >= 28) info.longVersionCode else @Suppress("DEPRECATION") info.versionCode.toLong()) == 10601004L) { "Different stock receiver version" }
         check(info.applicationInfo!!.flags and ApplicationInfo.FLAG_SYSTEM != 0)
-        val certs = (if (android.os.Build.VERSION.SDK_INT >= 28) info.signingInfo!!.apkContentsSigners else @Suppress("DEPRECATION") info.signatures)
+        val certs = (if (android.os.Build.VERSION.SDK_INT >= 28) info.signingInfo!!.apkContentsSigners else @Suppress("DEPRECATION") info.signatures) ?: error("No signing certificates")
         check(certs.size == 1 && MessageDigest.getInstance("SHA-256").digest(certs[0].toByteArray())
             .joinToString("") { "%02x".format(it.toInt() and 255) } ==
             "efe3ca8ada0d10c655c3df9910ad2ebc121a47d9a6358434eb24074309933efc")
