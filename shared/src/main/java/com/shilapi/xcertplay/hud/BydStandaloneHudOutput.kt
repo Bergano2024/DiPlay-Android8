@@ -52,9 +52,9 @@ internal class BydStandaloneHudOutput private constructor(context: Context) {
             if (Build.FINGERPRINT != "BYD-AUTO/IVI/IVI:13/TP1A.220624.014/eng.build20260722.221155:user/release-keys") return false
             return runCatching {
                 val manager = context.packageManager
-                val info = manager.getPackageInfo(TARGET.packageName, PackageManager.GET_SIGNING_CERTIFICATES)
+                val info = manager.getPackageInfo(TARGET.packageName, (if (android.os.Build.VERSION.SDK_INT >= 28) PackageManager.GET_SIGNING_CERTIFICATES else @Suppress("DEPRECATION") PackageManager.GET_SIGNATURES))
                 val receiver = manager.getReceiverInfo(TARGET, 0)
-                val signers = info.signingInfo?.apkContentsSigners ?: return false
+                val signers = (if (android.os.Build.VERSION.SDK_INT >= 28) info.signingInfo?.apkContentsSigners else @Suppress("DEPRECATION") info.signatures) ?: return false
                 (if (android.os.Build.VERSION.SDK_INT >= 28) info.longVersionCode else @Suppress("DEPRECATION") info.versionCode.toLong()) == 10601004L &&
                     info.applicationInfo!!.flags and ApplicationInfo.FLAG_SYSTEM != 0 &&
                     receiver.enabled && receiver.exported && receiver.permission.isNullOrEmpty() &&
