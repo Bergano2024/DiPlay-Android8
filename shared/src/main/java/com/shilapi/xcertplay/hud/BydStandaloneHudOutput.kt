@@ -55,7 +55,7 @@ internal class BydStandaloneHudOutput private constructor(context: Context) {
                 val info = manager.getPackageInfo(TARGET.packageName, PackageManager.GET_SIGNING_CERTIFICATES)
                 val receiver = manager.getReceiverInfo(TARGET, 0)
                 val signers = info.signingInfo?.apkContentsSigners ?: return false
-                info.longVersionCode == 10601004L &&
+                (if (android.os.Build.VERSION.SDK_INT >= 28) info.longVersionCode else @Suppress("DEPRECATION") info.versionCode.toLong()) == 10601004L &&
                     info.applicationInfo!!.flags and ApplicationInfo.FLAG_SYSTEM != 0 &&
                     receiver.enabled && receiver.exported && receiver.permission.isNullOrEmpty() &&
                     signers.size == 1 && MessageDigest.getInstance("SHA-256").digest(signers[0].toByteArray())

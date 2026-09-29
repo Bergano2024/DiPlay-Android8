@@ -38,7 +38,7 @@ class StandaloneHudDemoActivity : Activity() {
                 transmit(BydStandalonePackets.guidance(if (turn == 1) 2 else 3, 0, distance, road)!!)
                 if (turn != lastTurn) Log.i(TAG, "APP_GUIDANCE uid=${Process.myUid()} turn=$turn distance=$distance")
                 lastTurn = turn
-                status.text = (if (turn == 1) "LEFT — 500 m" else "RIGHT — 800 m") + "\n" + road
+                status.text = (if (turn == 1) "LEFT â€” 500 m" else "RIGHT â€” 800 m") + "\n" + road
                 handler.postDelayed(this, 1_000)
             } catch (error: Exception) {
                 Log.e(TAG, "Demo failed", error)
@@ -86,7 +86,7 @@ class StandaloneHudDemoActivity : Activity() {
             "This test is restricted to the inspected firmware"
         }
         val info = packageManager.getPackageInfo(target.packageName, PackageManager.GET_SIGNING_CERTIFICATES)
-        check(info.longVersionCode == 10601004L) { "Different stock receiver version" }
+        check((if (android.os.Build.VERSION.SDK_INT >= 28) info.longVersionCode else @Suppress("DEPRECATION") info.versionCode.toLong()) == 10601004L) { "Different stock receiver version" }
         check(info.applicationInfo!!.flags and ApplicationInfo.FLAG_SYSTEM != 0)
         val certs = info.signingInfo!!.apkContentsSigners
         check(certs.size == 1 && MessageDigest.getInstance("SHA-256").digest(certs[0].toByteArray())
@@ -131,10 +131,10 @@ class StandaloneHudDemoActivity : Activity() {
                 // Broadcast delivery is not a hardware acknowledgement.
                 Log.i(TAG, "APP_CLEAR_SENT uid=${Process.myUid()} reason=$reason")
                 showing = false
-                status.text = "Clear sent — check windshield"
+                status.text = "Clear sent â€” check windshield"
             } catch (error: Exception) {
                 Log.e(TAG, "Clear failed; retry with Clear HUD", error)
-                status.text = "Clear failed — tap Clear HUD"
+                status.text = "Clear failed â€” tap Clear HUD"
             }
         }
 
