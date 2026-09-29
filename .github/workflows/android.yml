@@ -33,3 +33,10 @@ jobs:
             shared/build/reports/tests/
             common/build/reports/tests/
             mobile/build/reports/lint-results-debug.html
+
+      - name: DiPlay Android 8.1 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DiPlay-Android8-debug
+          path: mobile/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
