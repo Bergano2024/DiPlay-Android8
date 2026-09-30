@@ -1,4 +1,4 @@
-﻿package com.shilapi.xcertplay
+package com.shilapi.xcertplay
 
 import android.content.Context
 import com.shilapi.xcertplay.airplay.AirPlayIdentity
@@ -13,13 +13,6 @@ internal object DiPlayBootstrap {
 
     @Synchronized fun ensure(context: Context) {
         if (ready) return
-    val mfiTarget = AirPlayPersistence.loadMfiTarget(context)
-
-    if (mfiTarget != MfiTarget.LOCAL) {
-        AirPlayPersistence.saveDebugLogsEnabled(context, false)
-        ready = true
-        return
-    }
         val target = File(context.noBackupFilesDir, LocalMfiAuthenticationClient.DIRECTORY)
         if (!target.exists()) {
             val staging = File(context.noBackupFilesDir, "offline-mfi-staging")
@@ -43,7 +36,7 @@ internal object DiPlayBootstrap {
             }
         }
         LocalMfiAuthenticationClient.load(target)
-
+        AirPlayPersistence.saveMfiTarget(context, MfiTarget.LOCAL)
         AirPlayPersistence.saveDebugLogsEnabled(context, false)
         ready = true
     }
