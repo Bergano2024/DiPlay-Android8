@@ -156,7 +156,7 @@ object AirPlayPersistence {
     fun loadMfiTarget(context: Context): MfiTarget {
         val stored = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getString(KEY_MFI_TARGET, null)
-        return MfiTarget.entries.firstOrNull { it.name == stored } ?: MfiTarget.LOCAL
+        return MfiTarget.entries.firstOrNull { it.name == stored } ?: MfiTarget.REMOTE
     }
 
     fun saveMfiTarget(context: Context, target: MfiTarget) {
