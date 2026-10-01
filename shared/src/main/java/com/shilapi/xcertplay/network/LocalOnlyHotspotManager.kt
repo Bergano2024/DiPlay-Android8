@@ -1,8 +1,7 @@
-package com.shilapi.xcertplay.network
+﻿package com.shilapi.xcertplay.network
 
 import android.content.Context
 import android.net.ConnectivityManager
-import android.net.MacAddress
 import android.net.wifi.SoftApConfiguration
 import android.net.wifi.WifiConfiguration
 import android.net.wifi.WifiManager
@@ -89,7 +88,7 @@ class LocalOnlyHotspotManager(context: Context, private val onDiagnostic: (Strin
                 deadlineNanos = deadlineNanos,
             )
             val liveRadio = awaitRadioInfo(radioInfo, apInterface, configuration, attempt, deadlineNanos)
-            if (liveRadio?.frequencyMHz?.let { it !in 5160..5895 } ?: (configuration.bandLabel != "5 GHz")) {
+            if (Build.VERSION.SDK_INT >= 29 && (liveRadio?.frequencyMHz?.let { it !in 5160..5895 } ?: (configuration.bandLabel != "5 GHz"))) {
                 throw IOException("This firmware did not provide the requested 5 GHz local hotspot; choose Wi-Fi Direct or Car hotspot")
             }
 
@@ -108,13 +107,13 @@ class LocalOnlyHotspotManager(context: Context, private val onDiagnostic: (Strin
             // With a live radio reading the channel is measured; Android 11/12 BYD units
             // have neither a live callback nor working WEXT, so there the advertised
             // channel degrades to the configuration's, the one this manager requested,
-            // or 36 — in that order — and the phone joining is the real verification.
+            // or 36 Ã¢â‚¬â€ in that order Ã¢â‚¬â€ and the phone joining is the real verification.
             val advertisedChannel = when {
                 liveRadio != null -> wifiFrequencyMhzToChannel(liveRadio.frequencyMHz)
                     ?: configuration.channel.takeIf { it > 0 } ?: requestedChannel ?: 36
                 configuration.channel > 0 -> configuration.channel
                 requestedChannel != null -> requestedChannel
-                else -> 36
+                else -> if (Build.VERSION.SDK_INT < 29 && configuration.bandLabel == "2.4 GHz") 1 else 36
             }
             if (liveRadio == null && configuration.channel == 0) {
                 onDiagnostic("LocalOnlyHotspot: advertising channel $advertisedChannel (band ${configuration.bandLabel}) without live verification")
@@ -149,7 +148,7 @@ class LocalOnlyHotspotManager(context: Context, private val onDiagnostic: (Strin
      * Frees the radio for a 5 GHz hotspot on Android 11/12. Observed on DiLink 5.0 /
      * Android 12: while the car's Wi-Fi client stays associated to a 2.4 GHz network, the
      * Qualcomm stack pins the local hotspot onto the same channel even when 5 GHz was
-     * explicitly requested. Disconnecting the station first is best-effort — where the
+     * explicitly requested. Disconnecting the station first is best-effort Ã¢â‚¬â€ where the
      * platform ignores it, the 2.4 GHz refusal message still names the Wi-Fi switch.
      */
     @Suppress("DEPRECATION")
@@ -181,7 +180,7 @@ class LocalOnlyHotspotManager(context: Context, private val onDiagnostic: (Strin
         // with Nearby devices permission. BYD's Android 12 builds expose the same entry
         // point but return a 2.4 GHz hotspot regardless of the requested band (observed
         // 2026-09-28 with the Wi-Fi client both on and off), while their plain reservation
-        // runs 5 GHz (Hotspot Check on the same build) — so Android 11/12 keep the plain
+        // runs 5 GHz (Hotspot Check on the same build) Ã¢â‚¬â€ so Android 11/12 keep the plain
         // path and rely on the band check below. Android 14/15 also keep the plain path.
         val main = Handler(Looper.getMainLooper())
         val executor = Executor { main.post(it) }
@@ -263,10 +262,8 @@ class LocalOnlyHotspotManager(context: Context, private val onDiagnostic: (Strin
                         }
                         if (configuration.bandLabel == "2.4 GHz") {
                             if (Build.VERSION.SDK_INT < 30) {
-                                // Android 10 BYD firmware pins the local hotspot to 2.4 GHz
-                                // regardless of the Wi-Fi switch (extracted-firmware fact);
-                                // switching Wi-Fi off cannot help, so do not suggest it.
-                                throw IOException("LocalOnlyHotspot: this Android 10 firmware always places the local hotspot on 2.4 GHz; use the Car hotspot or Wi-Fi Direct")
+                                onDiagnostic("LocalOnlyHotspot: Android ${Build.VERSION.SDK_INT} reported a 2.4 GHz hotspot; legacy radio=${reading.error ?: "no frequency"}; allowing it experimentally for the Android 8.1 port")
+                                return null
                             }
                             // Observed on DiLink 5.0 / Android 12: while the car's Wi-Fi
                             // client stays associated to a 2.4 GHz network, the Qualcomm
@@ -444,11 +441,16 @@ class LocalOnlyHotspotManager(context: Context, private val onDiagnostic: (Strin
         val ssid = validateSsid(configuration.SSID)
         val security = mapWifiConfigurationSecurity(configuration)
         val passphrase = validatePassphrase(security, unquote(configuration.preSharedKey))
-        val bssid = configuration.BSSID?.let {
+        val bssid = configuration.BSSID?.let { value ->
             try {
-                MacAddress.fromString(it)
+                val parts = value.split(":")
+                require(parts.size == 6) { "Expected 6 MAC address octets" }
+                parts.map { part ->
+                    require(part.length == 2) { "Invalid MAC address octet" }
+                    part.toInt(16).toByte()
+                }.toByteArray()
             } catch (failure: IllegalArgumentException) {
-                throw IOException("LocalOnlyHotspot reported an invalid BSSID: $it", failure)
+                throw IOException("LocalOnlyHotspot reported an invalid BSSID: $value", failure)
             }
         }
         val channel = readWifiConfigurationChannel(configuration)
@@ -458,8 +460,8 @@ class LocalOnlyHotspotManager(context: Context, private val onDiagnostic: (Strin
             passphrase = passphrase,
             security = security,
             channel = channel,
-            bssid = bssid?.toString(),
-            bssidBytes = bssid?.toByteArray(),
+            bssid = bssid?.toMacAddressString(),
+            bssidBytes = bssid,
             bandLabel = readWifiConfigurationBandLabel(configuration, channel),
         )
     }
@@ -516,7 +518,7 @@ class LocalOnlyHotspotManager(context: Context, private val onDiagnostic: (Strin
         channel: Int,
     ): String {
         // WifiConfiguration.apBand uses its own constants (0=2.4 GHz, 1=5 GHz), which do
-        // not line up with SoftApConfiguration's band values — map them explicitly.
+        // not line up with SoftApConfiguration's band values Ã¢â‚¬â€ map them explicitly.
         val band = try {
             (WifiConfiguration::class.java.getField("apBand").get(configuration) as? Number)
                 ?.toInt()
@@ -621,20 +623,24 @@ class LocalOnlyHotspotManager(context: Context, private val onDiagnostic: (Strin
 
     private fun NetworkInterface.hotspotAddress(): InetAddress? {
         var ipv4: InetAddress? = null
+        var ipv6: InetAddress? = null
         for (address in Collections.list(inetAddresses)) {
-            if (address is Inet6Address && address.isLinkLocalAddress) {
-                if (address.scopeId == index) return address
-                try {
-                    return Inet6Address.getByAddress(null, address.address, this)
-                } catch (_: UnknownHostException) {
-                    continue
-                }
-            }
             if (address is Inet4Address && !address.isLoopbackAddress && ipv4 == null) {
                 ipv4 = address
             }
+            if (address is Inet6Address && address.isLinkLocalAddress && ipv6 == null) {
+                ipv6 = if (address.scopeId == index) {
+                    address
+                } else {
+                    try {
+                        Inet6Address.getByAddress(null, address.address, this)
+                    } catch (_: UnknownHostException) {
+                        null
+                    }
+                }
+            }
         }
-        return ipv4
+        return if (Build.VERSION.SDK_INT < 29) ipv4 ?: ipv6 else ipv6 ?: ipv4
     }
 
     private fun ensureStartActive(attempt: StartAttempt) {
@@ -840,3 +846,5 @@ class LocalOnlyHotspotManager(context: Context, private val onDiagnostic: (Strin
         val INTERFACE_POLL_NANOS: Long = TimeUnit.MILLISECONDS.toNanos(100)
     }
 }
+
+

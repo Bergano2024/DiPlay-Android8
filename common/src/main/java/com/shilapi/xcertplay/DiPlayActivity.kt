@@ -516,7 +516,7 @@ class DiPlayActivity : ComponentActivity() {
             choices.addView(option, if (wide) LinearLayout.LayoutParams(0, -2, 1f).apply {
                 if (index > 0) marginStart = dp(16)
             } else LinearLayout.LayoutParams(-1, -2))
-            option.addView(button("${if (mode == candidate) "✓  " else ""}${titles[index]}", mode == candidate) {
+            option.addView(button("${if (mode == candidate) "âœ“  " else ""}${titles[index]}", mode == candidate) {
                 if (candidate == WirelessHotspotMode.MANUAL) {
                     pendingCarHotspotSetup = true
                     render()
@@ -610,7 +610,7 @@ class DiPlayActivity : ComponentActivity() {
         dialog.show()
     }
 
-    // "Left 20 %", "Centre · default", "Down 10 %": a signed step reads as a direction and a distance.
+    // "Left 20 %", "Centre Â· default", "Down 10 %": a signed step reads as a direction and a distance.
     private fun markerStepLabel(step: Int, negative: String, positive: String): String = when {
         step == 0 -> getString(R.string.marker_centre_default)
         step < 0 -> "$negative ${-step * CarPlayClusterDisplay.MARKER_STEP_PERCENT} %"
@@ -788,7 +788,7 @@ class DiPlayActivity : ComponentActivity() {
         AlertDialog.Builder(this).setTitle(getString(R.string.choose_your_iphone))
             .setItems(devices.map { device ->
                 val name = device.name ?: getString(R.string.paired_device)
-                if (devices.count { it.name == device.name } > 1) "$name · ${device.address.takeLast(5)}" else name
+                if (devices.count { it.name == device.name } > 1) "$name Â· ${device.address.takeLast(5)}" else name
             }.toTypedArray()) { _, index ->
                 val device = devices[index]
                 DiPlayPreferences.savePhone(this, device.address, device.name ?: "iPhone")
@@ -891,7 +891,7 @@ class DiPlayActivity : ComponentActivity() {
         Thread({
             val result = runCatching {
                 val report = buildString {
-                    appendLine("DiPlay ${version()} · private beta diagnostic report")
+                    appendLine("DiPlay ${version()} Â· private beta diagnostic report")
                     appendLine("Android ${Build.VERSION.RELEASE} / API ${Build.VERSION.SDK_INT}")
                     appendLine("Head unit: ${Build.MANUFACTURER} ${Build.MODEL}")
                     appendLine("Connection: ${if (AirPlayPersistence.loadWirelessEnabled(appContext)) "wireless" else "USB"}")
@@ -906,6 +906,17 @@ class DiPlayActivity : ComponentActivity() {
                     appendLine("--- Last display negotiation (timestamps distinguish it from current settings) ---")
                     appendLine(DisplayDiagnosticSnapshot.report(appContext))
                     appendLine()
+                    val crashFile = File(appContext.filesDir, "last-crash.txt")
+                    if (crashFile.isFile) {
+                        appendLine("--- Last uncaught crash ---")
+                        crashFile.useLines { lines ->
+                            lines.forEach { line ->
+                                DiagnosticRedactor.redact(line)?.let { appendLine(it) }
+                            }
+                        }
+                        appendLine()
+                    }
+
                     for (name in SessionLogFile.REPORT_NAMES) {
                         val file = File(appContext.filesDir, "logs/$name")
                         if (file.isFile) {
@@ -1042,7 +1053,7 @@ class DiPlayActivity : ComponentActivity() {
         section(content, getString(R.string.language_section_title)) { card ->
             card.addView(label(getString(R.string.language_hint), 14, MUTED))
             val current = AppLocale.preference(this)
-            val languageButton = button("${getString(R.string.language_app_language)} · ${AppLocale.displayName(this, current)}", false) { }
+            val languageButton = button("${getString(R.string.language_app_language)} Â· ${AppLocale.displayName(this, current)}", false) { }
             languageButton.setOnClickListener { AppLocale.showPicker(this) }
             card.addView(languageButton, matchButton(12, 60))
         }
@@ -1069,7 +1080,7 @@ class DiPlayActivity : ComponentActivity() {
     }
     private fun choice(parent: LinearLayout, title: String, options: List<String>, current: Int, reconnects: Boolean = true, save: (Int) -> Unit) {
         var selection = current
-        val button = button("$title · ${options[selection]}", false) {}
+        val button = button("$title Â· ${options[selection]}", false) {}
         button.setOnClickListener {
             var pendingSelection = selection
             AlertDialog.Builder(this).setTitle(title)
@@ -1078,7 +1089,7 @@ class DiPlayActivity : ComponentActivity() {
                     if (pendingSelection != selection) {
                         selection = pendingSelection
                         save(selection)
-                        button.text = "$title · ${options[selection]}"
+                        button.text = "$title Â· ${options[selection]}"
                         if (reconnects && CarPlayBackgroundSession.hasSession()) {
                             connect(AirPlayPersistence.loadWirelessEnabled(this))
                         }
